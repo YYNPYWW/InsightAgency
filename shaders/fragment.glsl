@@ -4,30 +4,23 @@ uniform vec2 iMouse;
 uniform sampler2D iChannel0;
 varying vec2 fragCoord;
 
-// 获取变形后的UV坐标
 vec2 getDistortedUv(vec2 uv, vec2 direction, float factor) {
-    vec2 scaledDirection = direction;
-    scaledDirection.y *= 2.0;
-    return uv - scaledDirection * factor;
+    return uv - direction * factor * 0.5;
 }
 
-// 定义变形镜头结构体
 struct DistortedLens {
     vec2 uv_R;
     vec2 uv_G;
     vec2 uv_B;
+    // 焦点的距离场，表示透镜内外的渐变区域
     float focusSdf;
-    float speherSdf;
+    // 透镜的距离场，表示透镜的边界
+    float sphereSdf;
+    // 透镜内外的渐变区域，用于控制透镜效果的透明度
     float inside;
 };
 
-vec2 fixRotation(vec2 uv, vec2 center) {
-    vec2 centered = uv - center;
-    centered.y = -centered.y;
-    return centered + center;
-}
-
-// 获取镜头变形效果
+// 透镜扭曲
 DistortedLens getLensDistortion(
     vec2 p,
     vec2 uv,
@@ -38,14 +31,14 @@ DistortedLens getLensDistortion(
 ) {
     vec2 distortionDirection = normalize(p - sphereCenter);
     float focusRadius = sphereRadius * focusFactor;
-    float focusStrength = sphereRadius / 5000.0;
+    float focusStrength = sphereRadius / 4000.0;
     float focusSdf = length(sphereCenter - p) - focusRadius;
-    float speherSdf = length(sphereCenter - p) - sphereRadius;
-    float inside = smoothstep(0.0, 1.0, -speherSdf / (sphereRadius - 0.001));
+    float sphereSdf = length(sphereCenter - p) - sphereRadius;
+    float inside = smoothstep(0.0, 0.2, -sphereSdf / (sphereRadius * 0.3));
     
     float magnifierFactor = focusSdf / (sphereRadius - focusRadius);
     float mFactor = clamp(magnifierFactor * inside, 0.0, 1.0);
-    mFactor = pow(mFactor, 5.0);
+    mFactor = pow(mFactor, 3.0);
 
     vec3 distortionFactors = vec3(
         mFactor * focusStrength * (1.0 + chromaticAberrationFactor),
@@ -57,42 +50,40 @@ DistortedLens getLensDistortion(
     vec2 uv_G = getDistortedUv(uv, distortionDirection, distortionFactors.g);
     vec2 uv_B = getDistortedUv(uv, distortionDirection, distortionFactors.b);
 
-    vec2 sphereCenterUv = sphereCenter / iResolution;
-    uv_R = fixRotation(uv_R, sphereCenterUv);
-    uv_G = fixRotation(uv_G, sphereCenterUv);
-    uv_B = fixRotation(uv_B, sphereCenterUv);
-
     return DistortedLens(
         uv_R,
         uv_G,
         uv_B,
         focusSdf,
-        speherSdf,
+        sphereSdf,
         inside
     );
 }
 
-// UV缩放函数
+// 基础的UV坐标变换函数，用于实现缩放效果
 vec2 zoomUV(vec2 uv, vec2 center, float zoom) {
-    float zoomFactor = 1.0 / zoom;
-    vec2 centeredUV = uv - center;
-    centeredUV *= zoomFactor;
-    return centeredUV + center;
+    vec2 centeredUV = uv - center;  // 将UV坐标中心移到指定位置
+    centeredUV *= zoom;             // 应用缩放
+    return centeredUV + center;     // 移回原始位置
 }
 
 void main() {
     vec2 p = fragCoord * iResolution;
     vec2 vUv = fragCoord;
     
-    vec2 textureSize = iResolution;
+    // 透镜中心坐标
     vec2 sphereCenter = iMouse.xy;
-    vec2 spehereCenterUv = sphereCenter / textureSize;
-    float sphereRadius = iResolution.y * 0.35;
-    float focusFactor = 0.25;
-    float chromaticAberrationFactor = 0.25;
-    float zoom = 1.75;
+    vec2 sphereCenterUv = sphereCenter / iResolution;
+    // 透镜半径
+    float sphereRadius = iResolution.y * 0.25;
+    // 透镜聚焦因子，用于控制透镜效果的中心聚焦
+    float focusFactor = 0.65;
+    // 色差因子，用于控制透镜效果的色差
+    float chromaticAberrationFactor = 0.15;
+    // 缩放因子，用于控制透镜效果的缩放
+    float zoom = 0.65;
 
-    vec2 zoomedUv = zoomUV(vUv, spehereCenterUv, zoom);
+    vec2 zoomedUv = zoomUV(vUv, sphereCenterUv, zoom);
 
     DistortedLens distortion = getLensDistortion(
         p, zoomedUv, sphereCenter, sphereRadius, focusFactor, chromaticAberrationFactor
@@ -106,7 +97,8 @@ void main() {
     );
 
     vec3 result = mix(baseTexture.rgb, imageDistorted, distortion.inside);
-    float alpha = distortion.inside;
+    // 透镜效果的透明度
+    float alpha = mix(0.0, 0.6, distortion.inside);
     
     gl_FragColor = vec4(result, alpha);
 }

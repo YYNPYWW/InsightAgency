@@ -188,8 +188,12 @@ function updateTexture() {
 
 function render() {
     const ease = 0.1;
+    mouseX += (targetMouseX - mouseX) * ease;
+    mouseY += (targetMouseY - mouseY) * ease;
     currentX += (targetX - currentX) * ease;
     currentY += (targetY - currentY) * ease;
+
+    container.style.transform = `translate(${currentX}px, ${currentY}px)`;
 
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -209,10 +213,19 @@ function render() {
 }
 
 function setupEventListeners() {
+    let isMouseMoving = false;
+    let mouseTimeout;
+
     document.addEventListener('mousemove', (e) => {
         targetMouseX = e.clientX;
         targetMouseY = e.clientY;
         updatePan(e.clientX, e.clientY);
+        
+        isMouseMoving = true;
+        clearTimeout(mouseTimeout);
+        mouseTimeout = setTimeout(() => {
+            isMouseMoving = false;
+        }, 100);
     });
 
     window.addEventListener('resize', () => {
