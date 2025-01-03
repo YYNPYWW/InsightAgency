@@ -1,11 +1,7 @@
-attribute vec4 position;
-attribute vec2 uv;
-
-varying vec2 vUv;
-varying vec2 vPosition;
+attribute vec4 aPosition;
+varying vec2 fragCoord;
 
 void main() {
-    vUv = uv;
-    vPosition = position.xy;
-    gl_Position = position;
+    gl_Position = aPosition;
+    fragCoord = (aPosition.xy * 0.5 +0.5);
 }
