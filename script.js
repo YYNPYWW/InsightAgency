@@ -11,7 +11,7 @@ let currentX = 0;
 let currentY = 0;
 
 const imgSources = Array.from(
-    { length: 10 },
+    { length: 34 },
     (_, i) => `./assets/img${i + 1}.jpg`
 );
 
@@ -20,7 +20,7 @@ function getRandomImage() {
 }
 
 function createImageGrid() {
-    for (let i = 0; i < 300; i++) {
+    for (let i = 0; i < 400; i++) {
         const wrapper = document.createElement('div');
         wrapper.className = 'img-wrapper';
 
